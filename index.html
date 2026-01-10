@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Boombox Player</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Permanent+Marker&family=Orbitron:wght@500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #ff3f34;
+            --lcd-bg: #44bd32;
+            --lcd-text: #1e272e;
+            --boombox: #353b48;
+            --trim: #7f8fa6;
+            --led-off: #0a0a0a;
+            --led-green: #00ff00;
+            --led-yellow: #ffcc00;
+            --led-red: #ff0033;
+        }
+
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(circle at center, #2f3640 0%, #000 100%);
+            height: 100vh;
+            color: white;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- STAGE --- */
+        .main-stage {
+            flex: 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            perspective: 1200px;
+            width: 100%;
+            z-index: 10;
+            overflow: hidden; 
+        }
+
+        .playlist-container {
+            flex: 1;
+            background: rgba(20, 20, 20, 0.95);
+            border-top: 4px solid var(--accent);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 20;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* --- BOOMBOX --- */
+        .boombox {
+            width: 860px;  /* Desktop Base Width */
+            height: 540px; /* Fixed Base Height */
+            background: var(--boombox);
+            border-radius: 40px;
+            box-shadow: 0 50px 100px rgba(0,0,0,0.8), inset 0 2px 5px rgba(255,255,255,0.2);
+            position: absolute; 
+            top: 50%;
+            left: 50%;
+            transform-origin: center center;
+            display: grid;
+            grid-template-columns: 1fr 1.4fr 1fr; /* Speaker - Console - Speaker */
+            padding: 25px;
+            border: 12px solid #2f3542;
+            transform-style: preserve-3d;
+            transition: width 0.3s;
+            backface-visibility: hidden;
+            will-change: transform;
+        }
+
+        .handle {
+            position: absolute;
+            top: -75px;
+            left: 25%;
+            right: 25%;
+            height: 85px;
+            background: linear-gradient(#b2bec3, #636e72);
+            border-radius: 20px 20px 0 0;
+            z-index: -1;
+            border: 12px solid #2f3542;
+            border-bottom: none;
+        }
+
+        /* --- SPEAKERS --- */
+        .speaker-housing {
+            background: #222;
+            border-radius: 50%;
+            margin: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 25px #000;
+            border: 5px solid #57606f;
+            position: relative;
+        }
+
+        .speaker-cone {
+            width: 85%;
+            height: 85%;
+            background: radial-gradient(circle, #353b48 20%, #1e272e 80%);
+            border-radius: 50%;
+            position: relative;
+            box-shadow: 0 0 10px rgba(0,0,0,0.8);
+            border: 1px dashed rgba(255,255,255,0.1);
+        }
+        
+        .speaker-cap {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 32%; height: 32%;
+            background: #2f3542;
+            border-radius: 50%;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.6);
+        }
+
+        .pumping .speaker-cone { animation: pump 0.1s infinite alternate; }
+        @keyframes pump { 0% { transform: scale(1); } 100% { transform: scale(1.05); } }
+
+        /* --- CONSOLE --- */
+        .center-console {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #2d3436;
+            border-radius: 15px;
+            padding: 15px;
+            position: relative;
+            border: 2px solid #636e72;
+            box-shadow: inset 0 0 20px #000;
+            z-index: 100;
+        }
+
+        .lcd {
+            background: var(--lcd-bg);
+            color: var(--lcd-text);
+            padding: 5px;
+            border-radius: 4px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 16px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #218c74;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);
+            text-transform: uppercase;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        /* --- CD MECHANISM --- */
+        .cd-bay {
+            flex: 1.5;
+            min-height: 140px;
+            background: #111;
+            border-radius: 5px;
+            position: relative;
+            perspective: 800px;
+            border: 1px solid #555;
+            box-shadow: inset 0 0 30px #000;
+        }
+
+        .glass-door {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.08);
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            transform-origin: top;
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 50;
+            backdrop-filter: blur(1px);
+            pointer-events: none;
+        }
+        
+        .cd-bay.open .glass-door {
+            transform: rotateX(100deg);
+            background: rgba(255,255,255,0.15);
+        }
+
+        .cd-mover {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            transform: translateY(0);
+            transition: transform 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .cd-disc {
+            width: 80%;
+            aspect-ratio: 1/1;
+            border-radius: 50%;
+            background: conic-gradient(#dcdde1, #f5f6fa, #dcdde1, #7f8fa6, #dcdde1);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .cd-hole {
+            width: 20%; height: 20%;
+            background: #111;
+            border-radius: 50%;
+            position: absolute;
+            box-shadow: inset 0 0 5px #000;
+            border: 2px solid rgba(255,255,255,0.1);
+            z-index: 5;
+        }
+
+        .cd-label {
+            position: absolute;
+            width: 100%; height: 100%;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-family: 'Permanent Marker', cursive;
+            font-size: 11px;
+            color: rgba(0,0,0,0.7);
+            padding: 15px;
+            mix-blend-mode: multiply; /* Default for colors */
+            transition: all 0.3s;
+        }
+
+        /* New Class for Album Art */
+        .cd-label.has-art {
+            mix-blend-mode: normal; /* Full color */
+            color: transparent; /* Hide text */
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.6); /* Depth */
+            background-color: #000; /* Fallback */
+        }
+
+        .spinning { animation: spin 3s linear infinite; }
+        .seeking { animation: spin 0.2s linear infinite !important; }
+        .seeking-reverse { animation: spin-reverse 0.2s linear infinite !important; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes spin-reverse { 100% { transform: rotate(-360deg); } }
+
+        .eject-pos { transform: translateY(-150%) rotate(-10deg) !important; }
+        .insert-pos { transform: translateY(150%) rotate(10deg) !important; transition: none !important; }
+
+        /* --- EQUALIZER PANEL --- */
+        .eq-panel {
+            flex: 1;
+            background: #000;
+            border: 2px solid #444;
+            border-radius: 6px;
+            padding: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: inset 0 0 20px #000;
+            position: relative;
+        }
+
+        .eq-band {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100px;
+            width: 18%;
+            position: relative;
+            justify-content: center; 
+        }
+
+        /* LED Meter */
+        .led-meter {
+            position: absolute;
+            top: 5px; bottom: 20px; width: 16px;
+            left: 50%; transform: translateX(-50%);
+            display: flex; flex-direction: column-reverse;
+            justify-content: space-between;
+            z-index: 0; pointer-events: none;
+            background: #050505; padding: 2px;
+            border-radius: 4px; border: 1px solid #222;
+        }
+
+        .led-seg {
+            width: 100%; height: 8%;
+            background: #111;
+            border-radius: 1px;
+            transition: background 0.05s, box-shadow 0.05s;
+            margin-bottom: 1px;
+        }
+
+        .led-seg.lit { background: var(--led-green); box-shadow: 0 0 8px var(--led-green); }
+        .led-seg.lit.mid { background: var(--led-yellow); box-shadow: 0 0 8px var(--led-yellow); }
+        .led-seg.lit.peak { background: var(--led-red); box-shadow: 0 0 10px var(--led-red); }
+
+        .eq-panel::after {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 10px);
+            pointer-events: none; z-index: 0;
+        }
+
+        /* ROTATED SLIDERS (-90deg) */
+        input[type=range].eq-slider {
+            -webkit-appearance: none; appearance: none;
+            width: 80px; height: 30px;
+            background: transparent; cursor: pointer; z-index: 2;
+            transform: rotate(-90deg); position: absolute; top: 35%;
+        }
+        input[type=range].eq-slider::-webkit-slider-runnable-track { background: transparent; border: none; }
+        input[type=range].eq-slider::-moz-range-track { background: transparent; border: none; }
+
+        input[type=range].eq-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 30px; width: 16px;
+            background: linear-gradient(to right, #2c3e50, #95a5a6, #bdc3c7, #95a5a6, #2c3e50);
+            border: 1px solid #000; border-radius: 2px;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.8);
+            margin-top: -6px;
+        }
+        
+        input[type=range].eq-slider::-moz-range-thumb {
+            height: 30px; width: 16px;
+            background: linear-gradient(to right, #2c3e50, #95a5a6, #bdc3c7, #95a5a6, #2c3e50);
+            border: 1px solid #000; border-radius: 2px;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.8);
+        }
+
+        .eq-label {
+            font-size: 10px; color: #888; position: absolute; bottom: 0;
+            font-family: 'Orbitron', sans-serif; text-shadow: 0 0 2px rgba(0,0,0,1);
+            z-index: 5; width: 100%; text-align: center;
+        }
+
+        /* --- CONTROLS --- */
+        .controls { display: flex; justify-content: space-evenly; align-items: center; }
+        .btn {
+            width: 42px; height: 42px; border-radius: 50%; border: none;
+            background: linear-gradient(#95a5a6, #7f8c8d); color: #2d3436; font-weight: bold;
+            box-shadow: 0 4px 0 #576574; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: 0.1s;
+        }
+        .btn:active { transform: translateY(3px); box-shadow: none; }
+        .btn.lit { background: #fff !important; color: var(--accent) !important; box-shadow: 0 0 15px #fff !important; }
+        .btn-play {
+            width: 55px; height: 55px;
+            background: linear-gradient(#ff6b6b, #ee5253); color: white;
+            font-size: 24px; box-shadow: 0 4px 0 #b33939;
+        }
+        .btn-play:active { box-shadow: 0 1px 0 #b33939; }
+
+        /* --- PLAYLIST UI --- */
+        .tabs { display: flex; background: #111; overflow-x: auto; }
+        .tab {
+            padding: 12px 18px; color: #777; cursor: pointer;
+            border-bottom: 3px solid transparent; white-space: nowrap; font-size: 14px;
+        }
+        .tab.active { color: #fff; border-bottom-color: var(--accent); background: #222; }
+        .tracks { flex: 1; overflow-y: auto; padding: 0; }
+        .track {
+            padding: 15px; border-bottom: 1px solid #333; color: #ccc;
+            cursor: pointer; display: flex; justify-content: space-between; font-size: 14px;
+        }
+        .track:hover { background: #333; }
+        .track.active { color: var(--accent); font-weight: bold; background: rgba(255,255,255,0.05); }
+
+        /* --- MOBILE LAYOUT --- */
+        @media (max-width: 768px) {
+            .boombox {
+                /* Change base dims for JS scaler */
+                width: 360px; /* Target width for mobile scaler */
+                height: 540px;
+                grid-template-columns: 1fr; /* Single column */
+            }
+            .speaker-housing { display: none; } /* Hide speakers */
+            .handle { left: 5%; right: 5%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-stage">
+    <div class="handle"></div>
+    <div class="boombox">
+        <!-- L Speaker -->
+        <div class="speaker-housing" id="spkL">
+            <div class="speaker-cone"><div class="speaker-cap"></div></div>
+        </div>
+
+        <!-- Console -->
+        <div class="center-console">
+            <div class="lcd" id="lcd">LOADING...</div>
+            
+            <!-- CD -->
+            <div class="cd-bay" id="cdBay">
+                <div class="glass-door"></div>
+                <div class="cd-mover" id="cdMover">
+                    <div class="cd-disc" id="cdDisc">
+                        <div class="cd-label" id="cdLabel">NO DISC</div>
+                        <div class="cd-hole"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EQUALIZER -->
+            <div class="eq-panel">
+                <div class="eq-band" id="eq60">
+                    <input type="range" class="eq-slider" min="-12" max="12" value="0" step="1">
+                    <div class="eq-label">60</div>
+                </div>
+                <div class="eq-band" id="eq250">
+                    <input type="range" class="eq-slider" min="-12" max="12" value="0" step="1">
+                    <div class="eq-label">250</div>
+                </div>
+                <div class="eq-band" id="eq1k">
+                    <input type="range" class="eq-slider" min="-12" max="12" value="0" step="1">
+                    <div class="eq-label">1K</div>
+                </div>
+                <div class="eq-band" id="eq4k">
+                    <input type="range" class="eq-slider" min="-12" max="12" value="0" step="1">
+                    <div class="eq-label">4K</div>
+                </div>
+                <div class="eq-band" id="eq16k">
+                    <input type="range" class="eq-slider" min="-12" max="12" value="0" step="1">
+                    <div class="eq-label">16K</div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="controls">
+                <button class="btn" id="btnPrev">⏮</button>
+                <button class="btn btn-play" onclick="togglePlay()" id="playBtn">▶</button>
+                <button class="btn" id="btnNext">⏭</button>
+            </div>
+        </div>
+
+        <!-- R Speaker -->
+        <div class="speaker-housing" id="spkR">
+            <div class="speaker-cone"><div class="speaker-cap"></div></div>
+        </div>
+    </div>
+</div>
+
+<div class="playlist-container">
+    <div class="tabs" id="tabs"></div>
+    <div class="tracks" id="tracklist"></div>
+</div>
+
+<audio id="audio" crossorigin="anonymous"></audio>
+
+<script>
+    /* --- CONFIGURATION --- */
+    const TEST_MODE = false; 
+    const GITHUB_USER = 'GashWare';
+    const GITHUB_REPO = 'Music';
+    
+    /* --- STATE --- */
+    let library = {};
+    let albumCovers = {}; 
+    let currentAlbum = null;
+    let trackIdx = 0;
+    let isPlaying = false;
+    let isAnimating = false;
+    
+    // Audio Context
+    let audioCtx;
+    let audioSrc;
+    let eqBands = []; 
+    let analyser;
+    let bufferLength;
+    let dataArray;
+    let visFrame;
+
+    /* --- ELEMENTS --- */
+    const els = {
+        lcd: document.getElementById('lcd'),
+        bay: document.getElementById('cdBay'),
+        mover: document.getElementById('cdMover'),
+        disc: document.getElementById('cdDisc'),
+        label: document.getElementById('cdLabel'),
+        audio: document.getElementById('audio'),
+        playBtn: document.getElementById('playBtn'),
+        spkL: document.getElementById('spkL'),
+        spkR: document.getElementById('spkR'),
+        tabs: document.getElementById('tabs'),
+        list: document.getElementById('tracklist')
+    };
+
+    /* --- INIT --- */
+    async function init() {
+        setupBtn('btnPrev', prev, () => seek(-1), 'seeking-reverse');
+        setupBtn('btnNext', next, () => seek(1), 'seeking');
+        
+        setupEQ(); 
+        setupMediaSession();
+        
+        // Initial sizing using Observer
+        const resizeObserver = new ResizeObserver(() => {
+            handleResize();
+        });
+        resizeObserver.observe(document.querySelector('.main-stage'));
+        
+        // Also fire once immediately
+        handleResize();
+
+        // Optimized Media Session Position Updates
+        // Only update on significant events, not every tick
+        els.audio.addEventListener('play', updatePositionState);
+        els.audio.addEventListener('pause', updatePositionState);
+        els.audio.addEventListener('seeked', updatePositionState);
+        els.audio.addEventListener('durationchange', updatePositionState);
+        els.audio.addEventListener('ratechange', updatePositionState);
+
+        if (TEST_MODE) {
+            els.lcd.innerText = "TEST MODE";
+        } else {
+            await fetchGithub();
+        }
+        if(!els.lcd.innerText.includes("ERR") && !els.lcd.innerText.includes("LIMIT") && !els.lcd.innerText.includes("NO MP3")) els.lcd.innerText = "READY";
+    }
+
+    /* --- SCALING LOGIC --- */
+    function handleResize() {
+        const stage = document.querySelector('.main-stage');
+        const box = document.querySelector('.boombox');
+        if (!stage || !box) return;
+
+        const pad = 20;
+        const isMobile = window.innerWidth < 768;
+        
+        // Adaptive Target Resolution
+        // Desktop: 860px (Full with speakers)
+        // Mobile: 360px (Center console only, speakers hidden by CSS)
+        const targetW = isMobile ? 360 : 860; 
+        const targetH = 540; 
+        
+        const availW = stage.clientWidth - (pad * 2);
+        const availH = stage.clientHeight - (pad * 2);
+
+        let scale = Math.min(availW / targetW, availH / targetH);
+        
+        // Cap max scale
+        scale = Math.min(scale, 1.5);
+        
+        box.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    }
+
+    /* --- EQ SYSTEM --- */
+    function setupEQ() {
+        const sliderIds = ['eq60', 'eq250', 'eq1k', 'eq4k', 'eq16k'];
+
+        sliderIds.forEach((id, i) => {
+            const container = document.getElementById(id);
+            const range = container.querySelector('input');
+            const meter = document.createElement('div');
+            meter.className = 'led-meter';
+            for(let j=0; j<10; j++) {
+                const seg = document.createElement('div');
+                seg.className = 'led-seg';
+                meter.appendChild(seg);
+            }
+            container.appendChild(meter);
+
+            range.addEventListener('input', (e) => {
+                const gain = parseFloat(e.target.value);
+                if(eqBands[i]) eqBands[i].gain.value = gain;
+            });
+
+            const reset = () => {
+                range.value = 0;
+                range.dispatchEvent(new Event('input'));
+                if(eqBands[i]) eqBands[i].gain.value = 0;
+            };
+
+            range.addEventListener('dblclick', reset);
+            
+            let lastTap = 0;
+            range.addEventListener('touchend', (e) => {
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTap;
+                if (tapLength < 300 && tapLength > 0) {
+                    reset();
+                    e.preventDefault();
+                }
+                lastTap = currentTime;
+            });
+        });
+    }
+
+    function initAudioContext() {
+        if (audioCtx) return; 
+        
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+        audioSrc = audioCtx.createMediaElementSource(els.audio);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 1024;
+
+        bufferLength = analyser.frequencyBinCount;
+        dataArray = new Uint8Array(bufferLength);
+
+        const freqs = [60, 250, 1000, 4000, 16000];
+        const types = ['lowshelf', 'peaking', 'peaking', 'peaking', 'highshelf'];
+
+        eqBands = freqs.map((f, i) => {
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = types[i];
+            filter.frequency.value = f;
+            filter.gain.value = 0; 
+            return filter;
+        });
+
+        let prevNode = audioSrc;
+        eqBands.forEach(band => {
+            prevNode.connect(band);
+            prevNode = band;
+        });
+        prevNode.connect(analyser);
+        analyser.connect(audioCtx.destination);
+    }
+
+    function drawVisualizer() {
+        if(!isPlaying || !analyser) {
+            cancelAnimationFrame(visFrame);
+            document.querySelectorAll('.led-seg').forEach(el => el.classList.remove('lit', 'mid', 'peak'));
+            return;
+        }
+
+        visFrame = requestAnimationFrame(drawVisualizer);
+        analyser.getByteFrequencyData(dataArray);
+
+        const indices = [2, 6, 23, 93, 371];
+        const bandIds = ['eq60', 'eq250', 'eq1k', 'eq4k', 'eq16k'];
+
+        indices.forEach((binIndex, i) => {
+            let sum = 0;
+            let count = 0;
+            for(let j = -2; j<=2; j++) {
+                if(dataArray[binIndex+j] !== undefined) {
+                    sum += dataArray[binIndex+j];
+                    count++;
+                }
+            }
+            const val = sum / count;
+            const level = Math.floor((val / 255) * 10);
+            
+            const container = document.getElementById(bandIds[i]);
+            const segments = container.querySelectorAll('.led-seg');
+            
+            segments.forEach((seg, idx) => {
+                if (idx < level) {
+                    seg.classList.add('lit');
+                    if (idx >= 6) seg.classList.add('mid'); 
+                    if (idx >= 8) seg.classList.add('peak'); 
+                } else {
+                    seg.classList.remove('lit', 'mid', 'peak');
+                }
+            });
+        });
+    }
+
+    /* --- BUTTONS --- */
+    function setupBtn(id, onClick, onHold, animClass) {
+        const btn = document.getElementById(id);
+        let timer, interval, holding = false;
+        
+        const start = (e) => {
+            if(e.type === 'touchstart') e.preventDefault();
+            btn.classList.add('lit'); holding = false;
+            timer = setTimeout(() => {
+                holding = true;
+                els.disc.classList.add(animClass);
+                interval = setInterval(onHold, 100);
+            }, 300);
+        };
+        const end = (e) => {
+            if(e.type === 'touchend') e.preventDefault();
+            btn.classList.remove('lit');
+            els.disc.classList.remove(animClass);
+            clearTimeout(timer); clearInterval(interval);
+            if(!holding) onClick();
+            holding = false;
+        };
+
+        btn.addEventListener('mousedown', start);
+        btn.addEventListener('touchstart', start);
+        btn.addEventListener('mouseup', end);
+        btn.addEventListener('mouseleave', end);
+        btn.addEventListener('touchend', end);
+    }
+
+    function seek(dir) {
+        els.audio.currentTime += (dir * 2);
+        els.lcd.innerText = `SEEK: ${fmtTime(els.audio.currentTime)}`;
+        // Update Media Session Position manually after button seek
+        updatePositionState();
+    }
+
+    /* --- GITHUB --- */
+    async function fetchGithub() {
+        els.lcd.innerText = "SCANNING...";
+        
+        let targetPath = 'music';
+        let url = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${targetPath}`;
+        
+        let r = await fetch(url);
+        
+        if (r.status === 404) {
+            targetPath = '';
+            url = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/`;
+            r = await fetch(url);
+        }
+
+        if (!r.ok) {
+            els.lcd.innerText = r.status === 403 ? "API LIMIT" : "ERR: REPO 404";
+            return;
+        }
+
+        const d = await r.json();
+        if (!Array.isArray(d)) { els.lcd.innerText = "ERR: NOT FOLDER"; return; }
+        
+        const processSongs = (songList) => {
+            return songList
+                .filter(s => s.name.match(/\.(mp3|wav|ogg)$/i))
+                .map(song => {
+                    let cleanName = song.name.replace(/\.(mp3|wav|ogg)$/i, '');
+                    let sortNum = 999;
+                    const match = cleanName.match(/^[\(\[]?(\d+)[\)\]\.]?\s*[\-\.]?\s*(.*)/);
+                    if (match) {
+                        sortNum = parseInt(match[1], 10);
+                        cleanName = match[2].trim();
+                    }
+                    return {
+                        name: cleanName, 
+                        originalName: song.name,
+                        url: song.download_url,
+                        sort: sortNum
+                    };
+                })
+                .sort((a, b) => {
+                    if (a.sort !== b.sort) return a.sort - b.sort;
+                    return a.name.localeCompare(b.name);
+                });
+        };
+
+        const looseFiles = processSongs(d.filter(i => i.type === 'file'));
+        const looseImages = d.filter(i => i.type === 'file' && i.name.match(/\.(jpg|jpeg|png|gif)$/i));
+        
+        if (looseFiles.length > 0) {
+            library['Singles'] = looseFiles;
+            if(looseImages.length > 0) {
+                const priority = looseImages.find(img => img.name.match(/^(cover|folder|front|art)/i));
+                albumCovers['Singles'] = priority ? priority.download_url : looseImages[0].download_url;
+            }
+        }
+
+        for (const item of d) {
+            if (item.type === 'dir') {
+                const sr = await fetch(item.url);
+                if(sr.ok) {
+                    const s = await sr.json();
+                    const songs = processSongs(s);
+                    
+                    const images = s.filter(f => f.name.match(/\.(jpg|jpeg|png|gif)$/i));
+                    let coverUrl = null;
+                    if(images.length > 0) {
+                        const priority = images.find(img => img.name.match(/^(cover|folder|front|art)/i));
+                        coverUrl = priority ? priority.download_url : images[0].download_url;
+                    }
+
+                    if (songs.length > 0) {
+                        library[item.name] = songs;
+                        if(coverUrl) albumCovers[item.name] = coverUrl;
+                    }
+                }
+            }
+        }
+        renderLibrary();
+    }
+
+    function renderLibrary() {
+        const albums = Object.keys(library);
+        if(!albums.length) {
+            els.lcd.innerText = "NO MP3s FOUND";
+            return;
+        }
+        els.tabs.innerHTML = '';
+        albums.forEach(alb => {
+            const d = document.createElement('div');
+            d.className = 'tab';
+            d.innerText = alb;
+            d.onclick = () => changeAlbum(alb);
+            els.tabs.appendChild(d);
+        });
+        loadAlbum(albums[0]);
+    }
+
+    async function changeAlbum(name) {
+        if (isAnimating || currentAlbum === name) return;
+        isAnimating = true;
+        if(isPlaying) togglePlay(); 
+        
+        els.lcd.innerText = "EJECTING...";
+        els.bay.classList.add('open');
+        await wait(500);
+
+        els.disc.classList.remove('spinning');
+        els.mover.classList.add('eject-pos');
+        await wait(800);
+
+        els.mover.classList.remove('eject-pos');
+        els.mover.classList.add('insert-pos');
+        loadAlbum(name);
+        els.lcd.innerText = "INSERTING...";
+        
+        void els.mover.offsetWidth; 
+        els.mover.classList.remove('insert-pos');
+        await wait(800);
+
+        els.bay.classList.remove('open');
+        await wait(500);
+
+        els.lcd.innerText = name;
+        isAnimating = false;
+        playTrack(0);
+    }
+
+    function loadAlbum(name) {
+        currentAlbum = name;
+        
+        els.label.style.backgroundImage = 'none';
+        els.label.innerText = name; 
+        els.label.style.backgroundColor = genColor(name);
+        els.label.classList.remove('has-art');
+
+        if (albumCovers[name]) {
+            els.label.style.backgroundImage = `url('${albumCovers[name]}')`;
+            els.label.style.backgroundSize = 'cover';
+            els.label.style.backgroundPosition = 'center';
+            els.label.innerText = ''; 
+            els.label.classList.add('has-art');
+        }
+        
+        Array.from(els.tabs.children).forEach(t => t.classList.toggle('active', t.innerText === name));
+        
+        els.list.innerHTML = '';
+        library[name].forEach((t, i) => {
+            const row = document.createElement('div');
+            row.className = 'track';
+            row.innerHTML = `<span>${i+1}. ${t.name}</span>`;
+            row.onclick = () => playTrack(i);
+            els.list.appendChild(row);
+        });
+    }
+
+    async function playTrack(idx, dir=1) {
+        if(isAnimating) return;
+        
+        initAudioContext();
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+
+        trackIdx = idx;
+        const track = library[currentAlbum][idx];
+        els.audio.src = track.url;
+        
+        updateMeta(track);
+
+        const cls = dir === -1 ? 'seeking-reverse' : 'seeking';
+        els.disc.classList.add(cls);
+        await wait(250);
+        els.disc.classList.remove(cls);
+
+        try {
+            await els.audio.play();
+            isPlaying = true;
+            updateUI();
+            els.lcd.innerText = track.name.substring(0, 18);
+            drawVisualizer(); 
+        } catch(e) { console.log("Play interrupted"); }
+    }
+
+    function togglePlay() {
+        if(!currentAlbum) return;
+        initAudioContext();
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+
+        if(els.audio.paused) {
+            els.audio.play().then(() => {
+                isPlaying = true;
+                drawVisualizer();
+                updateUI();
+            }).catch(e => console.log(e));
+        } else {
+            els.audio.pause();
+            isPlaying = false;
+            updateUI();
+        }
+    }
+
+    function updateUI() {
+        els.playBtn.innerText = isPlaying ? "⏸" : "▶";
+        if(isPlaying) {
+            els.disc.classList.add('spinning');
+            els.spkL.classList.add('pumping');
+            els.spkR.classList.add('pumping');
+            if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+        } else {
+            els.disc.classList.remove('spinning');
+            els.spkL.classList.remove('pumping');
+            els.spkR.classList.remove('pumping');
+            if('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+        }
+        Array.from(els.list.children).forEach((r, i) => r.classList.toggle('active', i === trackIdx));
+    }
+
+    function next() {
+        let n = trackIdx + 1;
+        if(n >= library[currentAlbum].length) n = 0;
+        playTrack(n, 1);
+    }
+
+    function prev() {
+        let p = trackIdx - 1;
+        if(p < 0) p = library[currentAlbum].length - 1;
+        playTrack(p, -1);
+    }
+
+    els.audio.onended = next;
+
+    function setupMediaSession() {
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.setActionHandler('play', togglePlay);
+            navigator.mediaSession.setActionHandler('pause', togglePlay);
+            navigator.mediaSession.setActionHandler('previoustrack', prev);
+            navigator.mediaSession.setActionHandler('nexttrack', next);
+            
+            navigator.mediaSession.setActionHandler('seekto', (details) => {
+                if (details.fastSeek && 'fastSeek' in els.audio) {
+                    els.audio.fastSeek(details.seekTime);
+                } else {
+                    els.audio.currentTime = details.seekTime;
+                }
+                // Important: Update state immediately after seek
+                updatePositionState();
+            });
+        }
+    }
+    
+    function updatePositionState() {
+        if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
+            if(!isNaN(els.audio.duration)) {
+                navigator.mediaSession.setPositionState({
+                    duration: els.audio.duration,
+                    playbackRate: els.audio.playbackRate,
+                    position: els.audio.currentTime
+                });
+            }
+        }
+    }
+    
+    function updateMeta(track) {
+        if ('mediaSession' in navigator) {
+            // Default placeholder
+            let artwork = [
+                { src: 'https://cdn-icons-png.flaticon.com/512/32/32328.png', sizes: '96x96', type: 'image/png' },
+                { src: 'https://cdn-icons-png.flaticon.com/512/32/32328.png', sizes: '128x128', type: 'image/png' },
+                { src: 'https://cdn-icons-png.flaticon.com/512/32/32328.png', sizes: '192x192', type: 'image/png' },
+                { src: 'https://cdn-icons-png.flaticon.com/512/32/32328.png', sizes: '256x256', type: 'image/png' },
+                { src: 'https://cdn-icons-png.flaticon.com/512/32/32328.png', sizes: '384x384', type: 'image/png' },
+                { src: 'https://cdn-icons-png.flaticon.com/512/32/32328.png', sizes: '512x512', type: 'image/png' }
+            ];
+            
+            if(albumCovers[currentAlbum]) {
+                const src = albumCovers[currentAlbum];
+                // Provide same src for multiple sizes to ensure OS picks one
+                artwork = [
+                    { src: src, sizes: '96x96', type: 'image/jpeg' },
+                    { src: src, sizes: '128x128', type: 'image/jpeg' },
+                    { src: src, sizes: '192x192', type: 'image/jpeg' },
+                    { src: src, sizes: '256x256', type: 'image/jpeg' },
+                    { src: src, sizes: '384x384', type: 'image/jpeg' },
+                    { src: src, sizes: '512x512', type: 'image/jpeg' }
+                ];
+            }
+
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: track.name,
+                artist: currentAlbum,
+                artwork: artwork
+            });
+        }
+    }
+
+    function genColor(str) {
+        let h = 0;
+        for(let i=0; i<str.length; i++) h = str.charCodeAt(i) + ((h<<5)-h);
+        return `hsl(${Math.abs(h)%360}, 70%, 80%)`;
+    }
+    
+    function fmtTime(s) {
+        const m = Math.floor(s/60), sec = Math.floor(s%60);
+        return `${m}:${sec<10?'0':''}${sec}`;
+    }
+
+    function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    init();
+</script>
+</body>
+</html>
