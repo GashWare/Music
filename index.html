@@ -45,14 +45,15 @@
             top: 50%; left: 50%;
             width: 150vmax; height: 150vmax;
             transform: translate(-50%, -50%);
-            /* Complex Nebula Gradient */
+            /* Complex Nebula Gradient - Optimized: Removed blur filter */
             background: 
                 radial-gradient(circle, rgba(100, 50, 150, 0.2) 0%, transparent 70%),
                 conic-gradient(from 0deg, transparent 0deg, rgba(60, 20, 120, 0.15) 120deg, transparent 240deg, rgba(255, 63, 52, 0.05) 300deg, transparent 360deg);
             z-index: 0; /* Deepest Layer */
             pointer-events: none;
             animation: galaxySpin 180s linear infinite;
-            filter: blur(20px);
+            /* PERFORMANCE FIX: Removed filter: blur(20px) to stop flickering */
+            will-change: transform; 
         }
 
         @keyframes galaxySpin {
@@ -80,6 +81,8 @@
             opacity: 0;
             animation: warpSpeed var(--duration) linear infinite;
             animation-delay: var(--delay);
+            /* PERFORMANCE FIX: Hint browser to promote to layer */
+            will-change: transform, opacity;
         }
 
         @keyframes warpSpeed {
@@ -127,6 +130,7 @@
             /* Fade out towards horizon */
             mask-image: linear-gradient(to bottom, transparent 0%, black 40%);
             -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 40%);
+            will-change: background-position;
         }
 
         @keyframes gridFlow {
@@ -624,7 +628,7 @@
     function createStars() {
         const field = document.getElementById('starfield');
         if (!field) return;
-        const count = 150; 
+        const count = 100; // Reduced count for performance
         for(let i=0; i<count; i++) {
             const star = document.createElement('div');
             star.className = 'star';
